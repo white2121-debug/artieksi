@@ -200,6 +200,7 @@ td:nth-child(2),th:nth-child(2){text-align:left;max-width:150px;overflow:hidden;
 <script>
 /* ============ Sınıf Defterim — sınıf içi değerlendirme ve ders planı ============ */
 "use strict";
+const APP_VERSION = 14;
 document.documentElement.lang = 'tr';
 const KEY = 'artieksi.v1';
 const DEFAULT_CRITERIA = ['Defter kontrolü','Derse katılım','Ödev','Ders için düzen'];
@@ -764,7 +765,7 @@ function backupSheet(){
     <div class="card"><h4>Yedekten geri yükle</h4>
       <div style="color:var(--muted);margin-bottom:12px">Telefon değiştirdiğinde ya da veriler silindiğinde kullan. Şu anki veriler yedektekilerle değiştirilir.</div>
       <button class="big ghost" id="bIn">Yedek dosyası seç</button><input type="file" id="bFile" class="hidden"></div>
-    <div class="hint">Veriler sadece bu telefonda durur, internete gönderilmez.</div>`, api=>{
+    <div class="hint">Veriler sadece bu telefonda durur, internete gönderilmez. · Sürüm ${APP_VERSION}</div>`, api=>{
     api.el.querySelector('#bOut').onclick = async ()=>{
       const data = JSON.stringify({app:'artieksi', v:1, exportedAt:new Date().toISOString(), data:S});
       const ok = await shareFile(`SinifDefterim_Yedek_${dayKey()}.json`, data, 'application/json');
@@ -1971,9 +1972,15 @@ setInterval(()=>{ if(document.visibilityState==='visible' && !document.querySele
 
 if('serviceWorker' in navigator && location.protocol === 'https:'){
   // İnternet yokken güncelleme kontrolü yapma; zaten kurulu olan çevrimdışı kopya çalışır.
-  const reg = ()=>{ if(navigator.onLine) navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).catch(()=>{}); };
+  const reg = ()=>{ if(navigator.onLine) navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).then(r=>r.update && r.update()).catch(()=>{}); };
   window.addEventListener('load', reg);
   window.addEventListener('online', reg);
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') reg(); });
+  // Yeni sürüm devreye girince bir kez yenile (açık pencere yokken)
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+    if(reloaded || document.querySelector('.ov')) return; reloaded = true; location.reload();
+  });
 }
 </script>
 </body>

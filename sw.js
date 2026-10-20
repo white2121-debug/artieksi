@@ -1,10 +1,15 @@
 // Sınıf Defterim — çevrimdışı çalışma için önbellek
 // Güncelleme yaptığında aşağıdaki sürüm numarasını artır.
-const VERSION = 'artieksi-v13';
+const VERSION = 'artieksi-v14';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png', './pdf.min.js', './pdf.worker.min.js'];
 
+// Kurulurken dosyaları tarayıcı önbelleğini atlayarak indir (eski kopya gelmesin).
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(VERSION)
+      .then(c => Promise.all(FILES.map(f => fetch(new Request(f, { cache: 'reload' })).then(r => { if (r.ok) return c.put(f, r); }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', e => {
@@ -14,21 +19,29 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Önce önbellekten aç (internetsiz çalışır). İnternet varsa arkada yeni sürümü indir;
-// yoksa hiç ağa çıkma (iPhone uçak modunda uyarı göstermesin).
+function timeout(ms) { return new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms)); }
+
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+  if (url.origin !== location.origin) return;
   const online = self.navigator ? self.navigator.onLine : true;
-  e.respondWith(
-    caches.open(VERSION).then(cache =>
-      cache.match(e.request, { ignoreSearch: true }).then(hit => {
-        if (hit && !online) return hit;
-        const net = fetch(e.request).then(res => {
-          if (res && res.ok && new URL(e.request.url).origin === location.origin) cache.put(e.request, res.clone());
-          return res;
-        }).catch(() => hit);
-        return hit || net;
-      })
-    )
-  );
+  const isPage = e.request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('/index.html');
+
+  e.respondWith(caches.open(VERSION).then(async cache => {
+    const hit = await cache.match(e.request, { ignoreSearch: true }) || (isPage ? await cache.match('./index.html') : null);
+    // İnternet yoksa hiç ağa çıkma (iPhone uçak modunda uyarı göstermesin).
+    if (!online && hit) return hit;
+    if (isPage) {
+      // Sayfa: önce internetten en yeni sürüm (en fazla 3 sn), olmazsa telefondaki kopya.
+      try {
+        const res = await Promise.race([fetch(e.request, { cache: 'no-cache' }), timeout(3000)]);
+        if (res && res.ok) { cache.put('./index.html', res.clone()); return res; }
+      } catch (err) {}
+      return hit || fetch(e.request);
+    }
+    // Diğer dosyalar: telefondaki kopya, arkada tazele.
+    const net = fetch(e.request, { cache: 'no-cache' }).then(res => { if (res && res.ok) cache.put(e.request, res.clone()); return res; }).catch(() => hit);
+    return hit || net;
+  }));
 });
