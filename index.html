@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Artı Eksi">
+<meta name="apple-mobile-web-app-title" content="Sınıf Defterim">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#f3f1ec" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#121318" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
-<title>Artı Eksi</title>
+<title>Sınıf Defterim</title>
 <style>
 :root{
   --bg:#f3f1ec; --card:#ffffff; --card2:#f8f6f2; --ink:#1c1f2a; --muted:#80838c; --line:#e3e0d8;
@@ -46,7 +46,7 @@ textarea{min-height:110px;resize:vertical}
 /* header */
 .top{position:sticky;top:0;z-index:20;background:var(--bg);padding:calc(env(safe-area-inset-top) + 10px) 0 6px}
 .titlebar{display:flex;align-items:center;gap:8px;padding:0 16px 8px}
-.titlebar h1{font-size:23px;margin:0;font-weight:700;letter-spacing:-.3px;flex:1}
+.titlebar h1{font-size:21px;margin:0;font-weight:700;letter-spacing:-.3px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pill{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:14px;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .pill svg{width:16px;height:16px}
 .row{display:flex;align-items:center;gap:8px;overflow-x:auto;padding:4px 16px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
@@ -184,7 +184,7 @@ td:nth-child(2),th:nth-child(2){text-align:left;max-width:150px;overflow:hidden;
 <nav class="bar" id="bar"></nav>
 
 <script>
-/* ============ Artı Eksi — sınıf içi değerlendirme ============ */
+/* ============ Sınıf Defterim — sınıf içi değerlendirme ve ders planı ============ */
 "use strict";
 document.documentElement.lang = 'tr';
 const KEY = 'artieksi.v1';
@@ -206,6 +206,8 @@ const ic = {
   dice:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/><circle cx="9" cy="9" r="1.3" fill="currentColor"/><circle cx="15" cy="15" r="1.3" fill="currentColor"/><circle cx="15" cy="9" r="1.3" fill="currentColor"/><circle cx="9" cy="15" r="1.3" fill="currentColor"/></svg>',
   report:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>',
   book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5c2.5-1 5.5-1 8 1 2.5-2 5.5-2 8-1v14c-2.5-1-5.5-1-8 1-2.5-2-5.5-2-8-1z"/><path d="M12 6v14"/></svg>',
+  eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  eyeOff:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7c2 0 3.7.7 5.1 1.6M22 12s-3.6 7-10 7c-2 0-3.7-.7-5.1-1.6"/><path d="M3 3l18 18"/></svg>',
   copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/></svg>',
   save:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
 };
@@ -298,11 +300,11 @@ function render(){ applyTheme(); renderTop(); renderBanner(); renderLesson(); re
 
 function renderTop(){
   const c = curClass(), sub = curSubject(), k = curCrit();
-  let h = `<div class="titlebar"><h1>Artı Eksi</h1>
+  let h = `<div class="titlebar"><h1>Sınıf Defterim</h1>
     <button class="pill" data-a="search" aria-label="Ara">${ic.search}</button>
     <button class="pill" data-a="random" aria-label="Rastgele öğrenci">${ic.dice}</button>
     <button class="pill" data-a="theme" aria-label="Tema: ${themeLabel[S.settings.theme]}">${ic.theme}${S.settings.theme==='auto'?'':themeLabel[S.settings.theme]}</button>
-    <button class="pill" data-a="names">İsim ${S.settings.showNames?'açık':'gizli'}</button></div>`;
+    <button class="pill" data-a="names" aria-label="İsimler ${S.settings.showNames?'açık':'gizli'}">${S.settings.showNames?ic.eye:ic.eyeOff}</button></div>`;
   h += `<div class="row"><span class="lbl">SINIF</span>`;
   for(const x of S.classes) h += `<button class="chip ${c&&x.id===c.id?'on':''}" data-a="cls" data-id="${x.id}">${esc(x.name)}</button>`;
   h += `<button class="chip add" data-a="addClass">+ Sınıf</button>`;
@@ -710,7 +712,7 @@ function exportCSV(c, subjects, since, range){
       lines.push(row.map(q).join(';'));
     }
   }
-  const name = `ArtiEksi_${c.name.replace(/\s+/g,'')}_${dayKey()}.csv`;
+  const name = `SinifDefterim_${c.name.replace(/\s+/g,'')}_${dayKey()}.csv`;
   shareFile(name, '﻿'+lines.join('\r\n'), 'text/csv');
 }
 async function shareFile(name, text, mime){
@@ -738,7 +740,7 @@ function backupSheet(){
     <div class="hint">Veriler sadece bu telefonda durur, internete gönderilmez.</div>`, api=>{
     api.el.querySelector('#bOut').onclick = async ()=>{
       const data = JSON.stringify({app:'artieksi', v:1, exportedAt:new Date().toISOString(), data:S});
-      const ok = await shareFile(`ArtiEksi_Yedek_${dayKey()}.json`, data, 'application/json');
+      const ok = await shareFile(`SinifDefterim_Yedek_${dayKey()}.json`, data, 'application/json');
       if(ok){ S.settings.lastBackup = Date.now(); save(); renderBanner(); api.close(); toast('Yedek hazır'); }
     };
     const f = api.el.querySelector('#bFile');
@@ -751,7 +753,7 @@ function backupSheet(){
         const st = d.classes.reduce((a,c)=>a+c.students.length,0);
         const ok = await confirmBox('Yedek geri yüklensin mi?', `Yedekte <b>${d.classes.length}</b> sınıf, <b>${st}</b> öğrenci ve <b>${d.events.length}</b> kayıt var. Şu anki verilerin yerini alacak.`, 'Geri yükle', false);
         if(ok){ const b=blank(); S = Object.assign(b, d, {settings:Object.assign(b.settings, d.settings||{})}); save(); render(); api.close(); toast('Yedek geri yüklendi'); }
-      }catch(e){ toast('Bu dosya geçerli bir Artı Eksi yedeği değil'); }
+      }catch(e){ toast('Bu dosya geçerli bir Sınıf Defterim yedeği değil'); }
       f.value='';
     };
   });
@@ -1920,7 +1922,7 @@ document.addEventListener('click', e=>{
     case 'addCrit': addCriterion(); break;
     case 'manage': manage(b.dataset.what); break;
     case 'theme': S.settings.theme = {auto:'light', light:'dark', dark:'auto'}[S.settings.theme]; save(); render(); break;
-    case 'names': S.settings.showNames = !S.settings.showNames; save(); render(); break;
+    case 'names': S.settings.showNames = !S.settings.showNames; save(); render(); toast(S.settings.showNames?'İsimler gösteriliyor':'İsimler gizlendi, sadece numaralar görünüyor'); break;
     case 'sort': S.settings.sort = {no:'name', name:'score', score:'no'}[S.settings.sort]; save(); render(); break;
     case 'search': searchOpen = !searchOpen; if(!searchOpen) searchQ=''; renderTop(); renderList(); if(searchOpen) setTimeout(()=>$('#q')&&$('#q').focus(),30); break;
     case 'import': importSheet(curClass()?.id); break;
