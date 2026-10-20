@@ -169,8 +169,19 @@ td:nth-child(2),th:nth-child(2){text-align:left;max-width:150px;overflow:hidden;
 .pf>.ib{position:absolute;right:-6px;top:8px}
 .pf .li .ib{position:static}
 .prow{width:100%;text-align:left;gap:10px}
-.prow .pn{width:22px;font-weight:800;color:var(--muted)}
-.prow .pt{font-size:12px;color:var(--muted);line-height:1.25;width:42px;font-variant-numeric:tabular-nums}
+.prow .pn{width:22px;font-weight:800;color:var(--ink);opacity:.7}
+.prow .pt{font-size:12.5px;color:var(--ink);font-weight:600;line-height:1.25;width:44px;font-variant-numeric:tabular-nums}
+.prow .pe{color:var(--muted)}
+.pcard{padding:6px 10px}
+.pcard>.li{padding-left:4px;padding-right:4px}
+.pblock{background:hsl(var(--h) var(--ts) var(--tl));border:1px solid hsl(var(--h) var(--ts) var(--tb));border-radius:12px;margin:6px 0;padding:0 8px}
+.pblock .li{border-bottom:1px solid hsl(var(--h) var(--ts) var(--tb))}
+.pblock .li:last-child{border-bottom:0}
+.pblock .t b{color:hsl(var(--h) var(--hs) calc(var(--hl) - 6%))}
+.pblock .pn{color:hsl(var(--h) var(--hs) var(--hl));opacity:1}
+.tabs{display:flex;gap:7px;margin-bottom:12px}
+.tabs button{flex:1;padding:9px 4px;border-radius:12px;font-size:14px;font-weight:700;line-height:1.15;background:hsl(var(--h) var(--ts) var(--tl));border:1px solid hsl(var(--h) var(--ts) var(--tb));color:hsl(var(--h) 30% var(--ti))}
+.tabs button.on{background:hsl(var(--h) var(--hs) var(--hl));border-color:hsl(var(--h) var(--hs) var(--hl));color:var(--hued-ink)}
 .prow svg{width:16px;height:16px;color:var(--muted);flex:none}
 
 /* renkler: az doygun, uyumlu tonlar; renk sadece yön gösteren yerlerde */
@@ -200,7 +211,7 @@ td:nth-child(2),th:nth-child(2){text-align:left;max-width:150px;overflow:hidden;
 <script>
 /* ============ Sınıf Defterim — sınıf içi değerlendirme ve ders planı ============ */
 "use strict";
-const APP_VERSION = 14;
+const APP_VERSION = 15;
 document.documentElement.lang = 'tr';
 const KEY = 'artieksi.v1';
 const DEFAULT_CRITERIA = ['Defter kontrolü','Derse katılım','Ödev','Ders için düzen'];
@@ -1544,7 +1555,7 @@ function planSheet(tab){
   let day = new Date().getDay(); if(day < 1 || day > 5) day = 1;
   let viewPlan = null;
   const draw = api=>{
-    let h = `<div class="seg">${[['week','Bu hafta'],['program','Program'],['plans','Planlar']].map(([k,l])=>`<button data-t="${k}" class="${tab===k?'on':''}">${l}</button>`).join('')}</div>`;
+    let h = `<div class="tabs">${[['week','Bu hafta',150],['program','Ders programım',212],['plans','Yıllık planlar',268]].map(([k,l,hu])=>`<button data-t="${k}" style="--h:${hu}" class="${tab===k?'on':''}">${l}</button>`).join('')}</div>`;
     if(tab==='week') h += weekTab();
     else if(tab==='program') h += programTab(day);
     else h += viewPlan ? planView(viewPlan) : plansTab();
@@ -1618,12 +1629,27 @@ function field(label, text){
   return `<div class="pf"><div class="pl">${esc(label)}</div><div class="pv">${esc(text).replace(/\n/g,'<br>')}</div><button class="ib" data-cp="${esc(text.replace(/\n/g,' '))}" aria-label="Kopyala">${ic.copy}</button></div>`;
 }
 function programTab(day){
-  let h = `<div class="seg">${[1,2,3,4,5].map(d=>`<button data-day="${d}" class="${d===day?'on':''}">${DAYS_S[d]}</button>`).join('')}</div><div class="card">`;
-  S.schedule.periods.forEach((p,i)=>{
+  let h = `<div class="seg">${[1,2,3,4,5].map(d=>`<button data-day="${d}" class="${d===day?'on':''}">${DAYS_S[d]}</button>`).join('')}</div><div class="card pcard">`;
+  // son dolu saatten sonraki boş saatleri gösterme (en az 8 saat göster)
+  const used = S.schedule.slots.reduce((m,x)=>Math.max(m,x.p),0);
+  const N = Math.min(S.schedule.periods.length, Math.max(8, used));
+  const row = (p,i,sl,cc,ss)=>`<button class="li prow" data-slot="${i+1}"><span class="pn">${i+1}</span><span class="pt">${esc(p.start)}<br>${esc(p.end)}</span><span class="t">${sl && cc ? `<b>${esc(cc.name)}</b> · ${esc(ss?ss.name:'?')}` : '<span class="pe">boş</span>'}</span>${ic.edit}</button>`;
+  let i = 0;
+  while(i < N){
+    const p = S.schedule.periods[i];
     const sl = S.schedule.slots.find(x=>x.day===day && x.p===i+1);
     const cc = sl && S.classes.find(x=>x.id===sl.c), ss = cc && cc.subjects.find(x=>x.id===sl.s);
-    h += `<button class="li prow" data-slot="${i+1}"><span class="pn">${i+1}</span><span class="pt">${esc(p.start)}<br>${esc(p.end)}</span><span class="t">${sl && cc ? `<b>${esc(cc.name)}</b> · ${esc(ss?ss.name:'?')}` : '<span style="color:var(--muted)">boş</span>'}</span>${ic.edit}</button>`;
-  });
+    if(!sl || !cc){ h += row(p,i,sl,cc,ss); i++; continue; }
+    // aynı sınıf ve dersin art arda gelen saatlerini tek renkli kutuda topla
+    let j = i, rows = '';
+    while(j < N){
+      const s2 = S.schedule.slots.find(x=>x.day===day && x.p===j+1);
+      if(!s2 || s2.c!==sl.c || s2.s!==sl.s) break;
+      rows += row(S.schedule.periods[j], j, s2, cc, ss); j++;
+    }
+    h += `<div class="pblock" style="--h:${classHue(cc)}">${rows}</div>`;
+    i = j;
+  }
   h += `</div><button class="big ghost" id="bell">Zil saatlerini düzenle</button>${window.PRESET && window.PRESET.program ? '<button class="big" id="prPreset">Hazır programımı ve planlarımı kur</button>' : ''}<button class="big ghost" id="prImp">Program yükle (okulun PDF'i)</button><button class="big ghost" id="prPaste">Program metnini yapıştır</button>`;
   const total = S.schedule.slots.length;
   h += `<div class="hint">${total ? `Haftada ${total} ders saati. ` : ''}Okulun tüm öğretmenlerin programlarını içeren PDF'ini seç; uygulama seni bulur. Küçük değişiklikler için saatlere dokunarak düzenleyebilirsin.</div>`;

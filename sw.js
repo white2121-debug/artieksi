@@ -1,6 +1,6 @@
 // Sınıf Defterim — çevrimdışı çalışma için önbellek
 // Güncelleme yaptığında aşağıdaki sürüm numarasını artır.
-const VERSION = 'artieksi-v14';
+const VERSION = 'artieksi-v15';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png', './pdf.min.js', './pdf.worker.min.js'];
 
 // Kurulurken dosyaları tarayıcı önbelleğini atlayarak indir (eski kopya gelmesin).
