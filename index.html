@@ -218,7 +218,7 @@ td:nth-child(2),th:nth-child(2){text-align:left;max-width:150px;overflow:hidden;
 <script>
 /* ============ Sınıf Defterim — sınıf içi değerlendirme ve ders planı ============ */
 "use strict";
-const APP_VERSION = 17;
+const APP_VERSION = 18;
 document.documentElement.lang = 'tr';
 const KEY = 'artieksi.v1';
 const DEFAULT_CRITERIA = ['Defter kontrolü','Derse katılım','Ödev','Ders için düzen'];
@@ -265,6 +265,20 @@ function load(){
 }
 let S = load();
 S.planSkip = {};
+function pruneSubjects(){
+  if(!S.schedule || !S.schedule.slots || !S.schedule.slots.length) return 0;
+  let n = 0;
+  for(const c of S.classes){
+    const used = new Set(S.schedule.slots.filter(x=>x.c===c.id).map(x=>x.s));
+    if(!used.size) continue;
+    const keep = c.subjects.filter(x=> used.has(x.id) || S.events.some(e=>e.s===x.id));
+    n += c.subjects.length - keep.length;
+    if(keep.length) c.subjects = keep;
+    if(S.settings.subjectByClass[c.id] && !c.subjects.some(x=>x.id===S.settings.subjectByClass[c.id])) delete S.settings.subjectByClass[c.id];
+  }
+  return n;
+}
+if(!S.settings.pruned1){ if(pruneSubjects()) {} S.settings.pruned1 = true; try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
 let saveTimer = null;
 function save(){
   clearTimeout(saveTimer);
@@ -1186,7 +1200,8 @@ function multiPreview(res){
       let added=0, skipped=0, made=0;
       for(const g of sel){
         let c = S.classes.find(x=>keyName(x.name)===keyName(g.className));
-        if(!c){ c = {id:uid(), name:g.className.trim(), students:[], subjects:[{id:uid(), name: res.subjectName || 'Genel'}]}; S.classes.push(c); made++; }
+        const subName = (g.detected && res.subjectName) ? res.subjectName : 'Genel';
+        if(!c){ c = {id:uid(), name:g.className.trim(), students:[], subjects:[{id:uid(), name: subName}]}; S.classes.push(c); made++; }
         const r = mergeStudents(c, g.students); added += r.added; skipped += r.skipped;
       }
       save(); render(); api.close();
@@ -1813,6 +1828,7 @@ function applyProgram(j){
     slots.push({day:x.day, p:x.p, c:c.id, s:s.id});
   }
   S.schedule.slots = slots; lessonPick.key = null; S.settings.autoKey = null;
+  pruneSubjects();
   autoSelect(); save(); render();
   toast(`Ders programı yüklendi · ${slots.length} ders saati${newClasses?` · ${newClasses} yeni sınıf`:''}`);
 }
