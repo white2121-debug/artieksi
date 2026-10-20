@@ -15,7 +15,7 @@
 <style>
 :root{
   --bg:#f3f1ec; --card:#ffffff; --card2:#f8f6f2; --ink:#1c1f2a; --muted:#80838c; --line:#e3e0d8;
-  --navy:#1b2440; --navy-ink:#ffffff; --minus:#d9532b; --plus:#3d9a5d; --score:#ece9e2;
+  --navy:#1b2440; --navy-ink:#ffffff; --minus:#cc5d3a; --plus:#479566; --score:#ece9e2;
   --warn-bg:#fdf1dc; --warn-ink:#8a5a12; --shadow:0 1px 2px rgba(20,20,30,.06),0 2px 10px rgba(20,20,30,.04);
   --backdrop:rgba(20,22,30,.38);
   color-scheme:light;
@@ -23,14 +23,14 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#121318; --card:#1c1e25; --card2:#23262e; --ink:#eef0f4; --muted:#979ca7; --line:#2d3039;
-    --navy:#e8ebf4; --navy-ink:#141722; --minus:#e0623b; --plus:#46a96a; --score:#2a2d36;
+    --navy:#e8ebf4; --navy-ink:#141722; --minus:#d26a4a; --plus:#4f9f70; --score:#2a2d36;
     --warn-bg:#3a2d14; --warn-ink:#f0c674; --shadow:none; --backdrop:rgba(0,0,0,.55);
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --bg:#121318; --card:#1c1e25; --card2:#23262e; --ink:#eef0f4; --muted:#979ca7; --line:#2d3039;
-  --navy:#e8ebf4; --navy-ink:#141722; --minus:#e0623b; --plus:#46a96a; --score:#2a2d36;
+  --navy:#e8ebf4; --navy-ink:#141722; --minus:#d26a4a; --plus:#4f9f70; --score:#2a2d36;
   --warn-bg:#3a2d14; --warn-ink:#f0c674; --shadow:none; --backdrop:rgba(0,0,0,.55);
   color-scheme:dark;
 }
@@ -173,6 +173,21 @@ td:nth-child(2),th:nth-child(2){text-align:left;max-width:150px;overflow:hidden;
 .prow .pn{width:22px;font-weight:800;color:var(--muted)}
 .prow .pt{font-size:12px;color:var(--muted);line-height:1.25;width:42px;font-variant-numeric:tabular-nums}
 .prow svg{width:16px;height:16px;color:var(--muted);flex:none}
+
+/* renkler: az doygun, uyumlu tonlar; renk sadece yön gösteren yerlerde */
+:root{ --hs:38%; --hl:44%; --tl:96%; --ts:38%; --ti:32%; --tb:88%; --hued-ink:#ffffff; }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --hs:32%; --hl:66%; --tl:17%; --ts:16%; --ti:80%; --tb:26%; --hued-ink:#12141a; } }
+:root[data-theme="dark"]{ --hs:32%; --hl:66%; --tl:17%; --ts:16%; --ti:80%; --tb:26%; --hued-ink:#12141a; }
+.chip.hued .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:hsl(var(--h) var(--hs) var(--hl));margin-right:7px;vertical-align:1px}
+.chip.hued.on{background:hsl(var(--h) var(--hs) var(--hl));border-color:hsl(var(--h) var(--hs) var(--hl));color:var(--hued-ink)}
+.chip.hued.on .dot{background:var(--hued-ink);opacity:.8}
+.top{border-bottom:2px solid hsl(var(--h,212) var(--hs) var(--hl) / .55)}
+.lesson.hued{background:hsl(var(--h) var(--ts) var(--tl));border-color:hsl(var(--h) var(--ts) var(--tb))}
+.lesson.hued .l-unit{color:hsl(var(--h) 30% var(--ti))}
+.lesson.hued .l-btn.main,.lesson.hued .l-h.on{background:hsl(var(--h) var(--hs) var(--hl));border-color:hsl(var(--h) var(--hs) var(--hl));color:var(--hued-ink)}
+.lesson.hued .l-btn:not(.main),.lesson.hued .l-h:not(.on){background:var(--card)}
+.bar button svg{color:hsl(var(--h) var(--hs) var(--hl))}
+.bar button{border-color:hsl(var(--h) var(--ts) var(--tb))}
 @media (min-width:700px){.list{max-width:720px;margin:0 auto}}
 </style>
 </head>
@@ -296,6 +311,15 @@ function applyTheme(){
 const themeLabel = {auto:'Oto', light:'Açık', dark:'Koyu'};
 const sortLabel = {no:'Liste sırası', name:'Ada göre', score:'Puana göre'};
 
+/* renkler: her sınıfa ve derse bir ton (hue) */
+const CLASS_HUES = [212, 158, 18, 330, 236, 38, 190, 128, 268, 4];
+const SUBJECT_HUES = [150, 24, 268, 190, 42, 330, 120, 236, 4, 212];
+function classHue(c){ if(!c) return 214; if(c.hue!=null) return c.hue; const i = S.classes.indexOf(c); return CLASS_HUES[(i<0?0:i) % CLASS_HUES.length]; }
+function subjectHue(name){
+  const names = allSubjectNames().map(keyName); let i = names.indexOf(keyName(name));
+  if(i < 0){ i = 0; for(const ch of keyName(name)) i = (i*31 + ch.charCodeAt(0)) >>> 0; }
+  return SUBJECT_HUES[i % SUBJECT_HUES.length];
+}
 function render(){ applyTheme(); renderTop(); renderBanner(); renderLesson(); renderList(); renderBar(); }
 
 function renderTop(){
@@ -306,13 +330,13 @@ function renderTop(){
     <button class="pill" data-a="theme" aria-label="Tema: ${themeLabel[S.settings.theme]}">${ic.theme}${S.settings.theme==='auto'?'':themeLabel[S.settings.theme]}</button>
     <button class="pill" data-a="names" aria-label="İsimler ${S.settings.showNames?'açık':'gizli'}">${S.settings.showNames?ic.eye:ic.eyeOff}</button></div>`;
   h += `<div class="row"><span class="lbl">SINIF</span>`;
-  for(const x of S.classes) h += `<button class="chip ${c&&x.id===c.id?'on':''}" data-a="cls" data-id="${x.id}">${esc(x.name)}</button>`;
+  for(const x of S.classes) h += `<button class="chip hued ${c&&x.id===c.id?'on':''}" style="--h:${classHue(x)}" data-a="cls" data-id="${x.id}"><i class="dot"></i>${esc(x.name)}</button>`;
   h += `<button class="chip add" data-a="addClass">+ Sınıf</button>`;
   if(S.classes.length) h += `<button class="chip more" data-a="manage" data-what="classes">Düzenle</button>`;
   h += `</div>`;
   if(c){
     h += `<div class="row"><span class="lbl">DERS</span>`;
-    for(const x of c.subjects) h += `<button class="chip ${x.id===sub.id?'on':''}" data-a="sub" data-id="${x.id}">${esc(x.name.toLocaleUpperCase('tr'))}</button>`;
+    for(const x of c.subjects) h += `<button class="chip hued sq ${x.id===sub.id?'on':''}" style="--h:${subjectHue(x.name)}" data-a="sub" data-id="${x.id}">${esc(x.name.toLocaleUpperCase('tr'))}</button>`;
     h += `<button class="chip add" data-a="addSub">+ Ders</button><button class="chip more" data-a="manage" data-what="subjects">Düzenle</button></div>`;
     h += `<div class="row crit"><span class="lbl">NOT</span>`;
     for(const x of S.criteria) h += `<button class="chip ${x.id===k.id?'on':''}" data-a="crit" data-id="${x.id}">${esc(x.name)}</button>`;
@@ -324,6 +348,7 @@ function renderTop(){
     if(searchOpen) h += `<div class="search"><input id="q" type="search" placeholder="Öğrenci ara (ad veya no)" value="${esc(searchQ)}" autocomplete="off"></div>`;
   }
   $('#top').innerHTML = h;
+  document.getElementById('top').style.setProperty('--h', classHue(c));
   const q = $('#q');
   if(q){ q.addEventListener('input', ()=>{ searchQ=q.value; renderList(); }); }
   // seçili çipi görünür yap
@@ -412,11 +437,11 @@ function updateRow(sid, pop){
 
 function renderBar(){
   $('#bar').innerHTML = `
-    <button data-a="import">${ic.upload}Liste<br>yükle</button>
-    <button data-a="addStudent">${ic.person}Öğrenci<br>ekle</button>
-    <button data-a="plan">${ic.book}Plan</button>
-    <button data-a="report">${ic.report}Rapor</button>
-    <button data-a="backup">${ic.save}Yedek</button>`;
+    <button data-a="import" style="--h:214">${ic.upload}Liste<br>yükle</button>
+    <button data-a="addStudent" style="--h:145">${ic.person}Öğrenci<br>ekle</button>
+    <button data-a="plan" style="--h:268">${ic.book}Plan</button>
+    <button data-a="report" style="--h:24">${ic.report}Rapor</button>
+    <button data-a="backup" style="--h:186">${ic.save}Yedek</button>`;
 }
 
 /* ---------- scoring + undo ---------- */
@@ -519,16 +544,18 @@ function manage(what){
   const arr = ()=> what==='classes' ? S.classes : what==='subjects' ? curClass().subjects : S.criteria;
   const draw = api=>{
     const a = arr();
-    let h = `<div class="card">` + a.map((x,i)=>`<div class="li"><div class="t">${esc(x.name)}${what==='classes'?`<small>${x.students.length} öğrenci · ${x.subjects.map(s=>esc(s.name)).join(', ')}</small>`:''}</div>
+    let h = `<div class="card">` + a.map((x,i)=>`<div class="li">${what==='classes'?`<button class="ib swatch" data-m="hue" data-i="${i}" style="--h:${classHue(x)}" aria-label="Rengi değiştir"><span></span></button>`:''}<div class="t">${esc(x.name)}${what==='classes'?`<small>${x.students.length} öğrenci · ${x.subjects.map(s=>esc(s.name)).join(', ')}</small>`:''}</div>
       <button class="ib" data-m="up" data-i="${i}" ${i===0?'disabled style="opacity:.3"':''}>${ic.up}</button>
       <button class="ib" data-m="down" data-i="${i}" ${i===a.length-1?'disabled style="opacity:.3"':''}>${ic.down}</button>
       <button class="ib" data-m="ren" data-i="${i}">${ic.edit}</button>
       <button class="ib red" data-m="del" data-i="${i}">${ic.trash}</button></div>`).join('') + `</div>`;
     h += `<button class="big ghost" data-m="add">+ Yeni ${what==='classes'?'sınıf':what==='subjects'?'ders':'kriter'}</button>`;
+    if(what==='classes') h += `<div class="hint">Soldaki renkli noktaya dokunarak sınıfın rengini değiştirebilirsin.</div>`;
     if(what==='criteria') h += `<div class="hint">Bir kriteri silersen o kritere verilen artı/eksiler de silinir.</div>`;
     api.setBody(h);
     api.el.querySelectorAll('[data-m]').forEach(b=>b.onclick = async ()=>{
       const m=b.dataset.m, i=+b.dataset.i, list=arr();
+      if(m==='hue'){ const x=list[i]; const cur=classHue(x); const k=CLASS_HUES.indexOf(cur); x.hue = CLASS_HUES[(k+1) % CLASS_HUES.length]; save(); render(); draw(api); return; }
       if(m==='up'||m==='down'){ const j=m==='up'?i-1:i+1; [list[i],list[j]]=[list[j],list[i]]; save(); render(); draw(api); }
       else if(m==='ren'){ const r=await ask('Yeniden adlandır',[{name:'name',label:'Ad',value:list[i].name}]); if(r&&r.name){ list[i].name=r.name; save(); render(); } draw(api); }
       else if(m==='del'){
@@ -1476,7 +1503,8 @@ function lessonState(){
 }
 function renderLesson(){
   const el = $('#lesson'); if(!el) return;
-  const st = lessonState();
+  const st0 = lessonState(); if(st0) el.style.setProperty('--h', subjectHue(st0.sub.name));
+  const st = st0;
   if(!st || !st.c.students){ el.innerHTML=''; return; }
   const {sub, plan, week, slots, H, skipped} = st;
   if(!plan){
@@ -1486,7 +1514,7 @@ function renderLesson(){
   }
   if(!week){ el.innerHTML = `<div class="lesson muted"><div class="l-top"><span>Bu tarih için planda hafta yok</span><button class="l-link" data-a="lessonOpen">Planı aç</button></div></div>`; return; }
   const head = `<div class="l-top"><span><b>${week.n}. hafta</b> · ${week.start?fmtRange(week.start, week.end):''}</span><button class="l-link" data-a="lessonOpen">Tüm plan</button></div>`;
-  if(week.holiday){ el.innerHTML = `<div class="lesson">${head}<div class="l-topic">${esc(week.unit||'Tatil')}</div></div>`; lessonCopyText=''; return; }
+  if(week.holiday){ el.innerHTML = `<div class="lesson hued">${head}<div class="l-topic">${esc(week.unit||'Tatil')}</div></div>`; lessonCopyText=''; return; }
   const dist = distribute(week.items, Math.max(H,1), skipped);
   const idx = Math.min(lessonPick.idx, Math.max(H,1)-1);
   const its = dist[idx];
@@ -1494,7 +1522,7 @@ function renderLesson(){
   const chips = H > 1 ? `<div class="l-hours">${Array.from({length:H},(_,i)=>`<button class="l-h ${i===idx?'on':''} ${skipped.includes(i)?'skip':''}" data-a="lessonHour" data-i="${i}">${label(i)}</button>`).join('')}</div>` : '';
   const isSkip = skipped.includes(idx);
   lessonCopyText = its ? copyLine(week, its) : '';
-  el.innerHTML = `<div class="lesson">${head}
+  el.innerHTML = `<div class="lesson hued">${head}
     <div class="l-unit">${esc(week.unit.split('\n')[0])}</div>
     <div class="l-topic">${isSkip ? '<span style="color:var(--muted)">Bu saat boş geçti olarak işaretli</span>' : its ? its.map(esc).join('<br>') : '—'}</div>
     ${week.days ? `<div class="l-days">${esc(week.days.replace(/\n/g,', '))}</div>`:''}

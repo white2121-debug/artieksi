@@ -1,6 +1,6 @@
 // Sınıf Defterim — çevrimdışı çalışma için önbellek
 // Güncelleme yaptığında aşağıdaki sürüm numarasını artır.
-const VERSION = 'artieksi-v11';
+const VERSION = 'artieksi-v12';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-192.png', './icon-512.png', './pdf.min.js', './pdf.worker.min.js'];
 
 self.addEventListener('install', e => {
