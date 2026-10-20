@@ -163,7 +163,7 @@ td:nth-child(2),th:nth-child(2){text-align:left;max-width:150px;overflow:hidden;
 .l-btn svg{width:18px;height:18px}
 .l-btn:disabled{opacity:.45}
 .l-btn.done,.ib.done{background:var(--plus)!important;color:#fff!important;border-color:var(--plus)!important}
-.pf{position:relative;padding:10px 40px 10px 0;border-top:1px solid var(--line)}
+.pf{position:relative;padding:10px 0;border-top:1px solid var(--line)}
 .pf .pl{font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:3px}
 .pf .pv{font-size:15px;line-height:1.4}
 .pf>.ib{position:absolute;right:-6px;top:8px}
@@ -179,6 +179,13 @@ td:nth-child(2),th:nth-child(2){text-align:left;max-width:150px;overflow:hidden;
 .pblock .li:last-child{border-bottom:0}
 .pblock .t b{color:hsl(var(--h) var(--hs) calc(var(--hl) - 6%))}
 .pblock .pn{color:hsl(var(--h) var(--hs) var(--hl));opacity:1}
+.wrow{align-items:flex-start;gap:10px}
+.wrow .pn,.wrow .pt{padding-top:1px}
+.wrow .t{white-space:normal}
+.wrow .wt{font-size:15px}
+.li.wrow .t small,.pf .li .t small{font-size:13.5px;color:var(--ink);opacity:.82;margin-top:2px;line-height:1.35;white-space:normal}
+.wrow .pn{width:22px;font-weight:800;color:hsl(var(--h) var(--hs) var(--hl))}
+.wrow .pt{font-size:12.5px;color:var(--ink);font-weight:700;line-height:1.25;width:44px;flex:none;font-variant-numeric:tabular-nums}
 .tabs{display:flex;gap:7px;margin-bottom:12px}
 .tabs button{flex:1;padding:9px 4px;border-radius:12px;font-size:14px;font-weight:700;line-height:1.15;background:hsl(var(--h) var(--ts) var(--tl));border:1px solid hsl(var(--h) var(--ts) var(--tb));color:hsl(var(--h) 30% var(--ti))}
 .tabs button.on{background:hsl(var(--h) var(--hs) var(--hl));border-color:hsl(var(--h) var(--hs) var(--hl));color:var(--hued-ink)}
@@ -211,7 +218,7 @@ td:nth-child(2),th:nth-child(2){text-align:left;max-width:150px;overflow:hidden;
 <script>
 /* ============ Sınıf Defterim — sınıf içi değerlendirme ve ders planı ============ */
 "use strict";
-const APP_VERSION = 15;
+const APP_VERSION = 16;
 document.documentElement.lang = 'tr';
 const KEY = 'artieksi.v1';
 const DEFAULT_CRITERIA = ['Defter kontrolü','Derse katılım','Ödev','Ders için düzen'];
@@ -257,6 +264,7 @@ function load(){
   }catch(e){ storageOK = false; return blank(); }
 }
 let S = load();
+S.planSkip = {};
 let saveTimer = null;
 function save(){
   clearTimeout(saveTimer);
@@ -1585,25 +1593,31 @@ function planSheet(tab){
 function weekTab(){
   const c = curClass(); if(!c) return `<div class="card">Önce sınıf oluştur.</div>`;
   let h = '';
-  // bugünkü dersler
+  // bugünkü dersler: her ders kendi renkli kutusunda (sınıfın rengi), art arda saatler aynı kutuda
   const today = new Date().getDay();
   const todays = S.schedule.slots.filter(x=>x.day===today).sort((a,b)=>a.p-b.p);
   if(todays.length){
-    h += `<div class="card"><h4>Bugün · ${DAYS[today]}</h4>`;
-    for(const sl of todays){
+    h += `<div class="card pcard"><h4 style="margin:8px 4px 4px">Bugün · ${DAYS[today]}</h4>`;
+    let i = 0;
+    while(i < todays.length){
+      const sl = todays[i];
       const cc = S.classes.find(x=>x.id===sl.c), ss = cc && cc.subjects.find(x=>x.id===sl.s);
-      const per = S.schedule.periods[sl.p-1]||{};
-      let topic = '';
-      const plan = ss && planFor(ss.name), w = weekFor(plan);
-      if(w && !w.holiday){
-        const slots = slotsFor(sl.c, sl.s), H = slots.length, i = slots.findIndex(x=>x.day===sl.day && x.p===sl.p);
-        const key = `${sl.c}|${sl.s}|${w.n}`, sk = S.planSkip[key]||[];
-        const its = distribute(w.items, H, sk)[i];
-        topic = sk.includes(i) ? '<i>boş geçti</i>' : its ? esc(its.join(' ')) : '';
-        if(its && !sk.includes(i)) topic += ` <button class="ib" data-cp="${esc(copyLine(w, its))}" aria-label="Kopyala">${ic.copy}</button>`;
-      } else if(w && w.holiday) topic = esc(w.unit);
-      else if(ss) topic = '<span style="color:var(--muted)">plan yok</span>';
-      h += `<div class="li"><div class="t" style="white-space:normal"><b>${sl.p}. ders</b> <span style="color:var(--muted)">${per.start||''}</span> · ${esc(cc?cc.name:'?')} ${esc(ss?ss.name:'')}<small>${topic}</small></div></div>`;
+      let j = i, rows = '';
+      while(j < todays.length && todays[j].c===sl.c && todays[j].s===sl.s && (j===i || todays[j].p===todays[j-1].p+1)){
+        const s2 = todays[j], per = S.schedule.periods[s2.p-1]||{};
+        let topic = '';
+        const plan = ss && planFor(ss.name), w = weekFor(plan);
+        if(w && !w.holiday){
+          const slots = slotsFor(s2.c, s2.s), H = slots.length, k = slots.findIndex(x=>x.day===s2.day && x.p===s2.p);
+          const its = distribute(w.items, H, [])[k];
+          topic = its ? esc(its.join(' ')) : '';
+        } else if(w && w.holiday) topic = esc(w.unit);
+        else if(ss) topic = '<span class="pe">plan yok</span>';
+        rows += `<div class="li wrow"><span class="pn">${s2.p}</span><span class="pt">${esc(per.start||'')}<br>${esc(per.end||'')}</span><div class="t"><div class="wt">${j===i?`<b>${esc(cc?cc.name:'?')}</b> · ${esc(ss?ss.name:'')}`:''}</div><small>${topic}</small></div></div>`;
+        j++;
+      }
+      h += `<div class="pblock" style="--h:${classHue(cc)}">${rows}</div>`;
+      i = j;
     }
     h += `</div>`;
   }
@@ -1613,20 +1627,19 @@ function weekTab(){
   else if(!w) h += `<div style="color:var(--muted)">Bu tarih planın dışında.</div>`;
   else {
     const slots = slotsFor(c.id, sub.id), H = slots.length || w.hours || 1;
-    const key = `${c.id}|${sub.id}|${w.n}`, sk = S.planSkip[key]||[];
-    const dist = distribute(w.items, H, sk);
+    const dist = distribute(w.items, H, []);
     h += `<div style="font-weight:700">${w.n}. hafta · ${w.start?fmtRange(w.start,w.end):''}</div>`;
     h += field('Ünite / Tema', w.unit) + field('Konu (içerik çerçevesi)', w.konu) + field('Öğrenme çıktıları', w.cikti);
-    if(!w.holiday) h += `<div class="pf"><div class="pl">Saatlere dağılım</div>` + dist.map((its,i)=>`<div class="li"><div class="t" style="white-space:normal"><b>${slots[i]?`${DAYS_S[slots[i].day]} ${slots[i].p}. ders`:`${i+1}. saat`}</b><small>${sk.includes(i)?'<i>boş geçti</i>':its?esc(its.join(' ')):'—'}</small></div>${its&&!sk.includes(i)?`<button class="ib" data-cp="${esc(copyLine(w,its))}">${ic.copy}</button>`:''}</div>`).join('') + `</div>`;
+    if(!w.holiday) h += `<div class="pf"><div class="pl">Saatlere dağılım</div>` + dist.map((its,i)=>`<div class="li"><div class="t" style="white-space:normal"><b>${slots[i]?`${DAYS_S[slots[i].day]} ${slots[i].p}. ders`:`${i+1}. saat`}</b><small>${its?esc(its.join(' ')):'—'}</small></div></div>`).join('') + `</div>`;
     if(w.days) h += field('Belirli gün ve haftalar', w.days);
   }
   h += `</div>`;
-  if(!S.schedule.slots.length) h += `<div class="hint">Ders programını “Program” sekmesinden girersen, uygulama açıldığında o saatteki ders kendiliğinden seçilir.</div>`;
+  if(!S.schedule.slots.length) h += `<div class="hint">Ders programını “Ders programım” sekmesinden girersen, uygulama açıldığında o saatteki ders kendiliğinden seçilir.</div>`;
   return h;
 }
 function field(label, text){
   if(!text) return '';
-  return `<div class="pf"><div class="pl">${esc(label)}</div><div class="pv">${esc(text).replace(/\n/g,'<br>')}</div><button class="ib" data-cp="${esc(text.replace(/\n/g,' '))}" aria-label="Kopyala">${ic.copy}</button></div>`;
+  return `<div class="pf"><div class="pl">${esc(label)}</div><div class="pv">${esc(text).replace(/\n/g,'<br>')}</div></div>`;
 }
 function programTab(day){
   let h = `<div class="seg">${[1,2,3,4,5].map(d=>`<button data-day="${d}" class="${d===day?'on':''}">${DAYS_S[d]}</button>`).join('')}</div><div class="card pcard">`;
