@@ -1942,7 +1942,10 @@ document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState=
 setInterval(()=>{ if(document.visibilityState==='visible' && !document.querySelector('.ov')){ if(autoSelect()) render(); } }, 60000);
 
 if('serviceWorker' in navigator && location.protocol === 'https:'){
-  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+  // İnternet yokken güncelleme kontrolü yapma; zaten kurulu olan çevrimdışı kopya çalışır.
+  const reg = ()=>{ if(navigator.onLine) navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).catch(()=>{}); };
+  window.addEventListener('load', reg);
+  window.addEventListener('online', reg);
 }
 </script>
 </body>
