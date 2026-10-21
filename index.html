@@ -218,7 +218,7 @@ td:nth-child(2),th:nth-child(2){text-align:left;max-width:150px;overflow:hidden;
 <script>
 /* ============ Sınıf Defterim — sınıf içi değerlendirme ve ders planı ============ */
 "use strict";
-const APP_VERSION = 18;
+const APP_VERSION = 19;
 document.documentElement.lang = 'tr';
 const KEY = 'artieksi.v1';
 const DEFAULT_CRITERIA = ['Defter kontrolü','Derse katılım','Ödev','Ders için düzen'];
@@ -265,6 +265,7 @@ function load(){
 }
 let S = load();
 S.planSkip = {};
+function keyNameEarly(x){ return String(x||'').toLocaleUpperCase('tr').replace(/[^A-ZÇĞİÖŞÜ0-9]/g,''); }
 function pruneSubjects(){
   if(!S.schedule || !S.schedule.slots || !S.schedule.slots.length) return 0;
   let n = 0;
@@ -278,6 +279,7 @@ function pruneSubjects(){
   }
   return n;
 }
+if(!S.settings.mgaKonu){ for(const pl of (S.plans||[])) if(/MESLEK.*GEL.*ATÖLYE/i.test(keyNameEarly(pl.subject)) && !pl.source) pl.source = 'konu'; S.settings.mgaKonu = true; try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
 if(!S.settings.pruned1){ if(pruneSubjects()) {} S.settings.pruned1 = true; try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
 let saveTimer = null;
 function save(){
@@ -1482,6 +1484,15 @@ function autoSelect(){
   lessonPick = {key:null, idx:0};
   return true;
 }
+const SOURCE_LABEL = {auto:'Süreç bileşenleri', konu:'Konu (içerik çerçevesi)', cikti:'Öğrenme çıktıları'};
+function planItems(plan, w){
+  if(!w || w.holiday) return [];
+  const src = plan && plan.source || 'auto';
+  const pick = t => String(t||'').split(/;|\n|•/).map(x=>x.replace(/^[\s\-–*·]+/,'').trim()).filter(x=>x.length>1);
+  if(src==='konu'){ const k = pick(w.konu); if(k.length) return k; }
+  if(src==='cikti'){ const c = pick(w.cikti); if(c.length) return c; }
+  return w.items;
+}
 function distribute(items, H, skipped){
   const out = new Array(H).fill(null);
   const eff = []; for(let i=0;i<H;i++) if(!skipped.includes(i)) eff.push(i);
@@ -1550,7 +1561,7 @@ function renderLesson(){
   if(!week){ el.innerHTML = `<div class="lesson muted"><div class="l-top"><span>Bu tarih için planda hafta yok</span><button class="l-link" data-a="lessonOpen">Planı aç</button></div></div>`; return; }
   const head = `<div class="l-top"><span><b>${week.n}. hafta</b> · ${week.start?fmtRange(week.start, week.end):''}</span><button class="l-link" data-a="lessonOpen">Tüm plan</button></div>`;
   if(week.holiday){ el.innerHTML = `<div class="lesson hued">${head}<div class="l-topic">${esc(week.unit||'Tatil')}</div></div>`; lessonCopyText=''; return; }
-  const dist = distribute(week.items, Math.max(H,1), skipped);
+  const dist = distribute(planItems(plan, week), Math.max(H,1), skipped);
   const idx = Math.min(lessonPick.idx, Math.max(H,1)-1);
   const its = dist[idx];
   const label = i => slots[i] ? `${DAYS_S[slots[i].day]} ${slots[i].p}.` : `${i+1}. saat`;
@@ -1591,6 +1602,7 @@ function planSheet(tab){
     el.querySelectorAll('[data-pv]').forEach(b=>b.onclick=()=>{ viewPlan=b.dataset.pv; draw(api); });
     el.querySelectorAll('[data-pdel]').forEach(b=>b.onclick=async()=>{ const p=S.plans.find(x=>x.id===b.dataset.pdel);
       if(await confirmBox('Plan silinsin mi?', `<b>${esc(p.subject)}</b> yıllık planı silinecek.`)){ S.plans=S.plans.filter(x=>x!==p); save(); render(); } draw(api); });
+    el.querySelectorAll('[data-psrc]').forEach(x=>x.onchange=()=>{ const p=S.plans.find(q=>q.id===x.dataset.psrc); p.source = x.value; lessonPick.key=null; save(); render(); toast(`${esc(p.subject)}: kartta “${SOURCE_LABEL[x.value]}” görünecek`); });
     el.querySelectorAll('[data-pren]').forEach(b=>b.onclick=async()=>{ const p=S.plans.find(x=>x.id===b.dataset.pren);
       const r = await pickSubject('Bu plan hangi ders için?', p.subject); if(r){ p.subject=r; save(); render(); } draw(api); });
     const cm = el.querySelector('#copyMode'); if(cm) cm.onchange=()=>{ S.settings.copyMode=cm.value; save(); renderLesson(); draw(api); };
@@ -1624,7 +1636,7 @@ function weekTab(){
         const plan = ss && planFor(ss.name), w = weekFor(plan);
         if(w && !w.holiday){
           const slots = slotsFor(s2.c, s2.s), H = slots.length, k = slots.findIndex(x=>x.day===s2.day && x.p===s2.p);
-          const its = distribute(w.items, H, [])[k];
+          const its = distribute(planItems(plan, w), H, [])[k];
           topic = its ? esc(its.join(' ')) : '';
         } else if(w && w.holiday) topic = esc(w.unit);
         else if(ss) topic = '<span class="pe">plan yok</span>';
@@ -1642,7 +1654,7 @@ function weekTab(){
   else if(!w) h += `<div style="color:var(--muted)">Bu tarih planın dışında.</div>`;
   else {
     const slots = slotsFor(c.id, sub.id), H = slots.length || w.hours || 1;
-    const dist = distribute(w.items, H, []);
+    const dist = distribute(planItems(plan, w), H, []);
     h += `<div style="font-weight:700">${w.n}. hafta · ${w.start?fmtRange(w.start,w.end):''}</div>`;
     h += field('Ünite / Tema', w.unit) + field('Konu (içerik çerçevesi)', w.konu) + field('Öğrenme çıktıları', w.cikti);
     if(!w.holiday) h += `<div class="pf"><div class="pl">Saatlere dağılım</div>` + dist.map((its,i)=>`<div class="li"><div class="t" style="white-space:normal"><b>${slots[i]?`${DAYS_S[slots[i].day]} ${slots[i].p}. ders`:`${i+1}. saat`}</b><small>${its?esc(its.join(' ')):'—'}</small></div></div>`).join('') + `</div>`;
@@ -1688,15 +1700,12 @@ function plansTab(){
   if(!S.plans.length) h += `<div style="color:var(--muted)">Henüz plan yok. Word ya da Excel yıllık planını yükle; aynı dersin girdiğin tüm sınıflarında kullanılır.</div>`;
   for(const p of S.plans){
     const used = S.classes.filter(c=>c.subjects.some(s=>keyName(s.name)===keyName(p.subject))).map(c=>c.name);
-    h += `<div class="li"><div class="t"><b>${esc(p.subject)}</b><small>${p.weeks.length} hafta · ${used.length?esc(used.join(', ')):'<span class="neg">hiçbir sınıfta bu adda ders yok</span>'}</small></div>
+    h += `<div class="li"><div class="t" style="white-space:normal;line-height:1.25"><b>${esc(p.subject)}</b><small>${p.weeks.length} hafta · ${used.length?esc(used.join(', ')):'<span class="neg">hiçbir sınıfta bu adda ders yok</span>'}</small></div>
+      <select data-psrc="${p.id}" aria-label="Deftere yazılacak sütun" style="width:auto;max-width:44%;padding:6px 8px;font-size:13px">${Object.entries(SOURCE_LABEL).map(([k,l])=>`<option value="${k}" ${(p.source||'auto')===k?'selected':''}>${k==='auto'?'Süreç bil.':k==='konu'?'Konu':'Çıktılar'}</option>`).join('')}</select>
       <button class="ib" data-pv="${p.id}" aria-label="Görüntüle">${ic.book}</button><button class="ib" data-pren="${p.id}" aria-label="Dersi değiştir">${ic.edit}</button><button class="ib red" data-pdel="${p.id}">${ic.trash}</button></div>`;
   }
   h += `</div><button class="big" id="pUp">Yıllık plan yükle (Word, Excel)</button>
-  <div class="card" style="margin-top:12px"><h4>Kopyalanan metin</h4><select id="copyMode">
-    <option value="unit" ${S.settings.copyMode==='unit'?'selected':''}>Ünite – süreç bileşeni</option>
-    <option value="cikti" ${S.settings.copyMode==='cikti'?'selected':''}>Öğrenme çıktısı – süreç bileşeni</option>
-    <option value="item" ${S.settings.copyMode==='item'?'selected':''}>Sadece süreç bileşeni</option></select>
-    <div class="hint">“Deftere kopyala” düğmesinin kopyaladığı metin.</div></div>`;
+  <div class="hint">Her planın yanındaki kutudan, ana ekrandaki konu kartında planın hangi sütununun görüneceğini seçebilirsin: Konu (içerik çerçevesi), Süreç bileşenleri ya da Öğrenme çıktıları.</div>`;
   return h;
 }
 function planView(id){
@@ -1705,7 +1714,7 @@ function planView(id){
   let h = `<button class="big ghost" id="pBack" style="margin-bottom:12px">← Planlar</button><div class="card"><h4>${esc(p.subject)} · ${p.weeks.length} hafta</h4>`;
   for(const w of p.weeks){
     h += `<div class="li" style="${cur===w?'background:var(--score);margin:0 -14px;padding:10px 14px':''}"><div class="t" style="white-space:normal"><b>${w.n}. hafta</b> <span style="color:var(--muted)">${w.start?fmtRange(w.start,w.end):''}</span>
-      <small>${w.holiday?esc(w.unit):esc(w.items.join(' · '))}</small></div></div>`;
+      <small>${w.holiday?esc(w.unit):esc(planItems(p, w).join(' · '))}</small></div></div>`;
   }
   return h + `</div>`;
 }
